@@ -6,13 +6,14 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import os
 
 pygame.init()
 pygame.display.set_caption("Ludo  by Mehran")
 screen = pygame.display.set_mode((680, 700),SCALED)
 
 #things that I don't do
-name = pygame.image.load('Name.png')
+# name = pygame.image.load('Name.png')
 board = pygame.image.load('Board.png')
 star  = pygame.image.load('star.png')
 one   = pygame.image.load('1.png')
@@ -69,6 +70,15 @@ jump = {(202, 240): (240, 202),  # Red to Green
 
          # R           G            Y          B
 WINNER = [[240, 284], [284, 240], [330, 284], [284, 330]]
+
+winner_path = [
+        [(240, 284), (202, 284), (164, 284), (126, 284), (88, 284), (50, 284)],
+        [(284, 240), (284, 202), (284, 164), (284, 126), (284, 88), (284, 50)],
+        [(330, 284), (368, 284), (406, 284), (444, 284), (482, 284), (520, 284)],
+        [(284, 330), (284, 368), (284, 406), (284, 444), (284, 482), (284, 520)        
+    ]]
+
+
 pygame.freetype.get_default_font() 
 # Movement
 def re_initialize():
@@ -101,16 +111,19 @@ def re_initialize():
             # R           G            Y          B
     WINNER = [[240, 284], [284, 240], [330, 284], [284, 330]]
     
+   
+    
+    
     # Define constants and global variables
 AI_PLAYER_INDEX = 0  # AI player
 NUM_ACTIONS = 4  # Assuming four tokens per player
 
 # Define Q-Network
 class QNetwork(nn.Module):
-    def __init__(self, input_size, output_size):
+    def __init__(self):
         super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_size, 64)
-        self.fc2 = nn.Linear(64, output_size)
+        self.fc1 = nn.Linear(32, 64)  # Adjusted input size
+        self.fc2 = nn.Linear(64, NUM_ACTIONS)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
@@ -118,9 +131,25 @@ class QNetwork(nn.Module):
         return x
 
 # Initialize Q-Network
-q_network = QNetwork(3, NUM_ACTIONS)
+q_network = QNetwork()
+
+# Load the model if it exists
+model_path = 'ludo_q_network.pth'
+if os.path.exists(model_path):
+    q_network.load_state_dict(torch.load(model_path))
+
+
 optimizer = optim.Adam(q_network.parameters(), lr=0.001)
 criterion = nn.MSELoss()
+
+def preprocess_state(state):
+    # Flatten the positions into a single list and normalize if necessary
+    positions = state['positions']
+    flat_positions = [pos for player in positions for token in player for pos in token]
+    # Normalize or scale positions if needed
+    # ...
+    return flat_positions
+
 
 # Functions for Q-learning
 def choose_action(state, q_network, epsilon=0.1):
@@ -128,24 +157,92 @@ def choose_action(state, q_network, epsilon=0.1):
         return random.choice([0, 1, 2, 3])
     else:
         with torch.no_grad():
+
             state_tensor = torch.tensor(state, dtype=torch.float32)
             q_values = q_network(state_tensor)
             return torch.argmax(q_values).item()
 
+# def calculate_reward(old_state, new_state, action_taken, playerKilled, winnerRank, old_winner_rank):
+#     reward = 0
+
+#     # Assuming the AI's action successfully changed the game state
+#     if new_state != old_state:
+#         reward += 1  # Basic reward for making a successful move
+
+#     # Additional reward if the AI captured an opponent's token
+#     if playerKilled:
+#         reward += 5
+
+#     # Significant reward for winning the game
+#     if len(winnerRank) > len(old_winner_rank):
+#         reward += 10
+
+#     return reward
+
+# Helper functions for calculating rewards
+
+def all_in_winner_rank(player):
+    # Check if all tokens of the player are in the winner rank
+    return all(pos in WINNER[player] for pos in position[player])
+
+def token_reached_winner_rank(player, token_index):
+    # Check if the specified token has reached the winner rank
+    return position[player][token_index] in WINNER[player]
+
+def token_on_winner_path(player, token_index):
+    # Implement logic based on your game rules to check if the token is on the path to the winner
+    # Placeholder logic
+    return position[player][token_index] in winner_path[player]
+# Define 'some_winner_path' based on your game logic
+
+def token_reached_safe_spot(player, token_index):
+    # Check if the specified token has reached a safe spot
+    return position[player][token_index] in SAFE
+
+def token_left_home(player, token_index):
+    # Check if the specified token has left home
+    return position[player][token_index] not in HOME[player]
+
+def token_moved_forward(old_state, new_state, player, token_index):
+    # Check if the specified token has moved forward
+    old_pos = old_state['positions'][player][token_index]
+    new_pos = new_state['positions'][player][token_index]
+    return new_pos > old_pos  # Adjust this logic based on how positions are represented
+
+
 def calculate_reward(old_state, new_state, action_taken, playerKilled, winnerRank, old_winner_rank):
     reward = 0
 
-    # Assuming the AI's action successfully changed the game state
-    if new_state != old_state:
-        reward += 1  # Basic reward for making a successful move
+    # Assumption: The state includes information about each token's position and status
+    # You need to implement the logic to track this information in your game
 
-    # Additional reward if the AI captured an opponent's token
+    # 1. Getting all your tokens to your winner rank (highest reward)
+    if all_in_winner_rank(currentPlayer):
+        reward += 100
+
+    # 2. Getting one of your tokens to winner rank
+    elif token_reached_winner_rank(currentPlayer, action_taken):
+        reward += 50
+
+    # 3. Getting your token to way to winner path
+    if token_on_winner_path(currentPlayer, action_taken):
+        reward += 25
+
+    # 4. Killing another token
     if playerKilled:
+        reward += 20
+
+    # 5. Getting your token to a safe position
+    if token_reached_safe_spot(currentPlayer, action_taken):
+        reward += 10
+
+    # 6. Getting your token out of home
+    if token_left_home(currentPlayer, action_taken):
         reward += 5
 
-    # Significant reward for winning the game
-    if len(winnerRank) > len(old_winner_rank):
-        reward += 10
+    # 7. Moving your token forward (lowest reward)
+    if token_moved_forward(old_state, new_state, currentPlayer, action_taken):
+        reward += 1
 
     return reward
 
@@ -160,7 +257,7 @@ def get_current_state():
 def show_token(x, y):
     screen.fill((0, 0, 0))
     screen.blit(board, (0, 0))
-    screen.blit(name,(0,600))
+    # screen.blit(name,(0,600))
     for i in SAFE[4:]:
         screen.blit(star, i)
 
@@ -202,7 +299,7 @@ def show_all():
         rank = FONT.render(f'{i+1}.', True, (0, 0, 0))
         screen.blit(rank, (600, 85 + (40*i)))
         screen.blit(color[winnerRank[i]], (620, 75 + (40*i)))
-    screen.blit(name,(0,600))
+    # screen.blit(name,(0,600))
 
 
 def is_possible(x, y):
@@ -383,15 +480,25 @@ while(running):
                         break
         
             if currentPlayer == AI_PLAYER_INDEX:
-                old_state = get_current_state()
-                action = choose_action(old_state, q_network)
+                # Before making a move
+                old_state = {
+                    'positions': [list(player) for player in position]  # Deep copy of the positions
+                    # Include other state elements if necessary
+                }
+                old_state_processed = preprocess_state(old_state)
+                
+                action = choose_action(old_state_processed, q_network)
                 # Execute the action
                 move_token(AI_PLAYER_INDEX, action)
 
-                new_state = get_current_state()
+                new_state = {
+                     'positions': [list(player) for player in position]  # Updated positions
+                        # Update other state elements if necessary
+                    }
+                
+                new_state_processed = preprocess_state(new_state)
                 
                 # Inside the game loop, before calling calculate_reward
-                # Inside the game loop
                 print(f"Old State: {old_state}, New State: {new_state}, Action Taken: {action}")
 
                 if 0 <= action < len(old_state) and 0 <= action < len(new_state):
@@ -407,8 +514,8 @@ while(running):
                 reward = calculate_reward(old_state, new_state, action, playerKilled, winnerRank, old_winner_rank)
 
                 # Update Q-Network
-                q_values = q_network(torch.tensor(old_state, dtype=torch.float32))
-                next_q_values = q_network(torch.tensor(new_state, dtype=torch.float32))
+                q_values = q_network(torch.tensor(old_state_processed, dtype=torch.float32))
+                next_q_values = q_network(torch.tensor(new_state_processed, dtype=torch.float32))
                 # Inside the game loop, after calculating q_values and next_q_values
                 print(f"Q-Values shape: {q_values.shape}, Next Q-Values shape: {next_q_values.shape}, Action: {action}")
 
@@ -446,3 +553,9 @@ while(running):
     show_all()
 
     pygame.display.update()
+
+
+
+
+torch.save(q_network.state_dict(), model_path)
+pygame.quit()
