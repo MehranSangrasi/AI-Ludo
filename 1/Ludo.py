@@ -556,6 +556,6 @@ while(running):
 
 
 
-
+print("Saving model...")
 torch.save(q_network.state_dict(), model_path)
 pygame.quit()
