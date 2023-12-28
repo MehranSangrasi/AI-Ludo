@@ -479,7 +479,26 @@ while(running):
                         move_token(currentPlayer, j)
                         break
         
-            if currentPlayer == AI_PLAYER_INDEX:
+        if currentPlayer == AI_PLAYER_INDEX:
+
+            # Rolling Dice
+            if not diceRolled:
+                number = random.randint(1, 6)
+            
+                diceSound.play()
+                flag = True
+                for i in range(len(position[currentPlayer])):
+                    if tuple(position[currentPlayer][i]) not in HOME[currentPlayer] and is_possible(currentPlayer, i):
+                        flag = False
+                if (flag and number == 6) or not flag:
+                    diceRolled = True
+
+                else:
+                    currentPlayer = (currentPlayer+1) % 4
+
+            # Moving Player
+            elif diceRolled:
+            
                 # Before making a move
                 old_state = {
                     'positions': [list(player) for player in position]  # Deep copy of the positions
@@ -492,7 +511,7 @@ while(running):
                 move_token(AI_PLAYER_INDEX, action)
 
                 new_state = {
-                     'positions': [list(player) for player in position]  # Updated positions
+                        'positions': [list(player) for player in position]  # Updated positions
                         # Update other state elements if necessary
                     }
                 
