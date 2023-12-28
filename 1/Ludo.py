@@ -115,7 +115,10 @@ def re_initialize():
     
     
     # Define constants and global variables
-AI_PLAYER_INDEX = 0  # AI player
+AI_PLAYER_INDEX_R = 0  # AI player 1
+AI_PLAYER_INDEX_G = 1  # AI player 2
+AI_PLAYER_INDEX_Y = 2  # AI player 3
+AI_PLAYER_INDEX_B = 3  # AI player 4
 NUM_ACTIONS = 4  # Assuming four tokens per player
 
 # Define Q-Network
@@ -131,15 +134,33 @@ class QNetwork(nn.Module):
         return x
 
 # Initialize Q-Network
-q_network = QNetwork()
+r_q_network = QNetwork()
+g_q_network = QNetwork()
+y_q_network = QNetwork()
+b_q_network = QNetwork()
 
 # Load the model if it exists
-model_path = 'ludo_q_network.pth'
-if os.path.exists(model_path):
-    q_network.load_state_dict(torch.load(model_path))
+r_model_path = 'r_ludo_q_network.pth'
+g_model_path = 'g_ludo_q_network.pth'
+y_model_path = 'y_ludo_q_network.pth'
+b_model_path = 'b_ludo_q_network.pth'
+if os.path.exists(r_model_path):
+    r_q_network.load_state_dict(torch.load(r_model_path))
+
+if os.path.exists(g_model_path):
+    g_q_network.load_state_dict(torch.load(g_model_path))
+
+if os.path.exists(y_model_path):
+    y_q_network.load_state_dict(torch.load(y_model_path))
+
+if os.path.exists(b_model_path):
+    b_q_network.load_state_dict(torch.load(b_model_path))
 
 
-optimizer = optim.Adam(q_network.parameters(), lr=0.001)
+r_optimizer = optim.Adam(r_q_network.parameters(), lr=0.001)
+g_optimizer = optim.Adam(g_q_network.parameters(), lr=0.001)
+y_optimizer = optim.Adam(y_q_network.parameters(), lr=0.001)
+b_optimizer = optim.Adam(b_q_network.parameters(), lr=0.001)
 criterion = nn.MSELoss()
 
 def preprocess_state(state):
@@ -279,7 +300,7 @@ def show_token(x, y):
         screen.blit(color[winnerRank[i]], (620, 75 + (40*i)))
 
     pygame.display.update()
-    time.sleep(0.5)
+    time.sleep(0.05)
 
 
 def show_all():
@@ -479,102 +500,121 @@ while(running):
                         move_token(currentPlayer, j)
                         break
         
-        if currentPlayer == AI_PLAYER_INDEX:
 
-            # Rolling Dice
-            if not diceRolled:
-                number = random.randint(1, 6)
-            
-                diceSound.play()
-                flag = True
-                for i in range(len(position[currentPlayer])):
-                    if tuple(position[currentPlayer][i]) not in HOME[currentPlayer] and is_possible(currentPlayer, i):
-                        flag = False
-                if (flag and number == 6) or not flag:
-                    diceRolled = True
+        # Rolling Dice
+    if not diceRolled:
+        number = random.randint(1, 6)
+    
+        diceSound.play()
+        flag = True
+        for i in range(len(position[currentPlayer])):
+            if tuple(position[currentPlayer][i]) not in HOME[currentPlayer] and is_possible(currentPlayer, i):
+                flag = False
+        if (flag and number == 6) or not flag:
+            diceRolled = True
 
-                else:
-                    currentPlayer = (currentPlayer+1) % 4
+        else:
+            currentPlayer = (currentPlayer+1) % 4
 
-            # Moving Player
-            elif diceRolled:
-            
-                # Before making a move
-                old_state = {
-                    'positions': [list(player) for player in position]  # Deep copy of the positions
-                    # Include other state elements if necessary
-                }
-                old_state_processed = preprocess_state(old_state)
-                
-                action = choose_action(old_state_processed, q_network)
-                # Execute the action
-                move_token(AI_PLAYER_INDEX, action)
+    # Moving Player
+    elif diceRolled:
+    
+        # Before making a move
+        old_state = {
+            'positions': [list(player) for player in position]  # Deep copy of the positions
+            # Include other state elements if necessary
+        }
+        old_state_processed = preprocess_state(old_state)
+        
+        if currentPlayer == 0:
+            q_network = r_q_network
+            optimizer = r_optimizer
+        elif currentPlayer == 1:
+            q_network = g_q_network
+            optimizer = g_optimizer
+        elif currentPlayer == 2:
+            q_network = y_q_network
+            optimizer = y_optimizer
+        elif currentPlayer == 3:
+            q_network = b_q_network
+            optimizer = b_optimizer
 
-                new_state = {
-                        'positions': [list(player) for player in position]  # Updated positions
-                        # Update other state elements if necessary
-                    }
-                
-                new_state_processed = preprocess_state(new_state)
-                
-                # Inside the game loop, before calling calculate_reward
-                print(f"Old State: {old_state}, New State: {new_state}, Action Taken: {action}")
+        action = choose_action(old_state_processed, q_network)
+        # Execute the action
 
-                if 0 <= action < len(old_state) and 0 <= action < len(new_state):
-                    # The action index is within the valid range, so we can calculate the reward
-                    reward = calculate_reward(old_state, new_state, action, playerKilled, winnerRank, old_winner_rank)
-                else:
-                    # The action index is out of range, which might indicate an issue with how actions are chosen
-                    print("Invalid action index")
-                    reward = 0  # Handle the invalid action case as appropriate
+        move_token(currentPlayer, action)
+
+        new_state = {
+                'positions': [list(player) for player in position]  # Updated positions
+                # Update other state elements if necessary
+            }
+        
+        new_state_processed = preprocess_state(new_state)
+        
+        # Inside the game loop, before calling calculate_reward
+        print(f"Old State: {old_state}, New State: {new_state}, Action Taken: {action}")
+
+        if 0 <= action < len(old_state) and 0 <= action < len(new_state):
+            # The action index is within the valid range, so we can calculate the reward
+            reward = calculate_reward(old_state, new_state, action, playerKilled, winnerRank, old_winner_rank)
+        else:
+            # The action index is out of range, which might indicate an issue with how actions are chosen
+            print("Invalid action index")
+            reward = 0  # Handle the invalid action case as appropriate
 
 
-                
-                reward = calculate_reward(old_state, new_state, action, playerKilled, winnerRank, old_winner_rank)
+        
+        reward = calculate_reward(old_state, new_state, action, playerKilled, winnerRank, old_winner_rank)
 
-                # Update Q-Network
-                q_values = q_network(torch.tensor(old_state_processed, dtype=torch.float32))
-                next_q_values = q_network(torch.tensor(new_state_processed, dtype=torch.float32))
-                # Inside the game loop, after calculating q_values and next_q_values
-                print(f"Q-Values shape: {q_values.shape}, Next Q-Values shape: {next_q_values.shape}, Action: {action}")
+        # Update Q-Network
+        q_values = q_network(torch.tensor(old_state_processed, dtype=torch.float32))
+        next_q_values = q_network(torch.tensor(new_state_processed, dtype=torch.float32))
+        # Inside the game loop, after calculating q_values and next_q_values
+        print(f"Q-Values shape: {q_values.shape}, Next Q-Values shape: {next_q_values.shape}, Action: {action}")
 
-                # Add a batch dimension to q_values and next_q_values
-                q_values = q_values.unsqueeze(0)
-                next_q_values = next_q_values.unsqueeze(0)
+        # Add a batch dimension to q_values and next_q_values
+        q_values = q_values.unsqueeze(0)
+        next_q_values = next_q_values.unsqueeze(0)
 
-                # Calculate max_next_q value
-                max_next_q = torch.max(next_q_values).item()
+        # Calculate max_next_q value
+        max_next_q = torch.max(next_q_values).item()
 
-                # Prepare target_q values for loss calculation
-                target_q = q_values.clone()
-                target_q[0][action] = reward + 0.9 * max_next_q  # Discount factor
+        # Prepare target_q values for loss calculation
+        target_q = q_values.clone()
+        target_q[0][action] = reward + 0.9 * max_next_q  # Discount factor
 
-                # Compute the loss
-                loss = criterion(q_values, target_q)
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+        # Compute the loss
+        loss = criterion(q_values, target_q)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-            
-            # max_next_q = torch.max(next_q_values).item()
+    
+    # max_next_q = torch.max(next_q_values).item()
 
-            # target_q = q_values.clone()
-            # target_q[0][action] = reward + 0.9 * max_next_q  # Discount factor
+    # target_q = q_values.clone()
+    # target_q[0][action] = reward + 0.9 * max_next_q  # Discount factor
 
-            # loss = criterion(q_values, target_q)
-            # optimizer.zero_grad()
-            # loss.backward()
-            # optimizer.step()
+    # loss = criterion(q_values, target_q)
+    # optimizer.zero_grad()
+    # loss.backward()
+    # optimizer.step()
 
-    # Update old_winner_rank at the end of each loop iteration
-            old_winner_rank = winnerRank.copy()
-            
+# Update old_winner_rank at the end of each loop iteration
+    old_winner_rank = winnerRank.copy()
+        
     show_all()
 
     pygame.display.update()
 
+    pygame.time.delay(300)
+
 
 
 print("Saving model...")
-torch.save(q_network.state_dict(), model_path)
+torch.save(r_q_network.state_dict(), r_model_path)
+torch.save(g_q_network.state_dict(), g_model_path)
+torch.save(y_q_network.state_dict(), y_model_path)
+torch.save(b_q_network.state_dict(), b_model_path)
+
 pygame.quit()
