@@ -72,11 +72,12 @@ jump = {(202, 240): (240, 202),  # Red to Green
 WINNER = [[240, 284], [284, 240], [330, 284], [284, 330]]
 
 winner_path = [
-        [(240, 284), (202, 284), (164, 284), (126, 284), (88, 284), (50, 284)],
-        [(284, 240), (284, 202), (284, 164), (284, 126), (284, 88), (284, 50)],
-        [(330, 284), (368, 284), (406, 284), (444, 284), (482, 284), (520, 284)],
-        [(284, 330), (284, 368), (284, 406), (284, 444), (284, 482), (284, 520)        
-    ]]
+    
+        [(12,284),(50, 284), (88, 284), (126, 284), (164, 284), (202, 284), (240, 284)],
+        [(284,12),(284, 50), (284, 88), (284, 126), (284, 164), (284, 202), (284, 240)],
+        [(558,284),(520, 284), (482, 284), (444, 284), (406, 284), (368, 284), (330, 284)],
+        [(284,558),(284, 520), (284, 482), (284, 444), (284, 406), (284, 368), (284, 330)]      
+    ]
 
 
 pygame.freetype.get_default_font() 
@@ -259,7 +260,7 @@ def calculate_reward(old_state, new_state, action_taken, playerKilled, winnerRan
 
     # 6. Getting your token out of home
     if token_left_home(currentPlayer, action_taken):
-        reward += 5
+        reward += 15
 
     # 7. Moving your token forward (lowest reward)
     if token_moved_forward(old_state, new_state, currentPlayer, action_taken):
@@ -360,39 +361,37 @@ def move_token(x, y):
         if not number == 6:
             currentPlayer = (currentPlayer+1) % 4
 
-        # Way to WINNER position
+        for i in range(number):
+        #     if position[x][y] in winner_path[x]:
+        #         position[x][y] = list(winner_path[x][winner_path[x].index(position[x][y])+1])
+            #  R2
+            if (position[x][y][1] == 284 and position[x][y][0] <= 202 and x == 0) \
+                    and (position[x][y][0] + 38 <= WINNER[x][0]): 
+                    position[x][y][0] += 38
+                    show_token(x, y)
 
-        #  R2
-        if (position[x][y][1] == 284 and position[x][y][0] <= 202 and x == 0) \
-                and (position[x][y][0] + 38*number <= WINNER[x][0]):
-            for i in range(number):
-                position[x][y][0] += 38
-                show_token(x, y)
+            #  Y2
+            elif (position[x][y][1] == 284 and 368 < position[x][y][0] and x == 2) \
+                    and (position[x][y][0] - 38*number >= WINNER[x][0]):
+                # for i in range(number):
+                    position[x][y][0] -= 38
+                    show_token(x,y)
 
-        #  Y2
-        elif (position[x][y][1] == 284 and 368 < position[x][y][0] and x == 2) \
-                and (position[x][y][0] - 38*number >= WINNER[x][0]):
-            for i in range(number):
-                position[x][y][0] -= 38
-                show_token()
-
-        #  G2
-        elif (position[x][y][0] == 284 and position[x][y][1] <= 202 and x == 1) \
-                and (position[x][y][1] + 38*number <= WINNER[x][1]):
-            for i in range(number):
-                position[x][y][1] += 38
-                show_token()
-        #  B2
-        elif (position[x][y][0] == 284 and position[x][y][1] >= 368 and x == 3) \
-                and (position[x][y][1] - 38*number >= WINNER[x][1]):
-            for i in range(number):
-                position[x][y][1] -= 38
-                show_token()
+            #  G2
+            elif (position[x][y][0] == 284 and position[x][y][1] <= 202 and x == 1) \
+                    and (position[x][y][1] + 38*number <= WINNER[x][1]):
+                # for i in range(number):
+                    position[x][y][1] += 38
+                    show_token(x,y)
+            #  B2
+            elif (position[x][y][0] == 284 and position[x][y][1] >= 368 and x == 3) \
+                    and (position[x][y][1] - 38*number >= WINNER[x][1]):
+                # for i in range(number):
+                    position[x][y][1] -= 38
+                    show_token(x,y)
 
         # Other Paths
-        else:
-            for _ in range(number):
-
+            else:
                 #  R1, Y3
                 if (position[x][y][1] == 240 and position[x][y][0] < 202) \
                         or (position[x][y][1] == 240 and 368 <= position[x][y][0] < 558):
@@ -541,6 +540,37 @@ while(running):
 
         action = choose_action(old_state_processed, q_network)
         # Execute the action
+        
+        while ((tuple(position[currentPlayer][action]) in HOME[currentPlayer] and number != 6 ) or not is_possible(currentPlayer, action))or position[currentPlayer][action] in WINNER:
+            
+            # train q_network to avoid this action in the future
+            reward = -10
+            # Update Q-Network
+            q_values = q_network(torch.tensor(old_state_processed, dtype=torch.float32))
+            next_q_values = q_network(torch.tensor(old_state_processed, dtype=torch.float32))
+            # Inside the game loop, after calculating q_values and next_q_values
+            print(f"Q-Values shape: {q_values.shape}, Next Q-Values shape: {next_q_values.shape}, Action: {action}")
+            
+            # Add a batch dimension to q_values and next_q_values
+            q_values = q_values.unsqueeze(0)
+            next_q_values = next_q_values.unsqueeze(0)
+            
+            # Calculate max_next_q value
+            max_next_q = torch.max(next_q_values).item()
+            
+            # Prepare target_q values for loss calculation
+            target_q = q_values.clone()
+            target_q[0][action] = reward + 0.9 * max_next_q  # Discount factor
+            
+            # Compute the loss
+            loss = criterion(q_values, target_q)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
+            action = choose_action(old_state_processed, q_network)
+
+
 
         move_token(currentPlayer, action)
 
@@ -552,16 +582,10 @@ while(running):
         new_state_processed = preprocess_state(new_state)
         
         # Inside the game loop, before calling calculate_reward
+        print("Turn = ", currentPlayer)
         print(f"Old State: {old_state}, New State: {new_state}, Action Taken: {action}")
 
-        if 0 <= action < len(old_state) and 0 <= action < len(new_state):
-            # The action index is within the valid range, so we can calculate the reward
-            reward = calculate_reward(old_state, new_state, action, playerKilled, winnerRank, old_winner_rank)
-        else:
-            # The action index is out of range, which might indicate an issue with how actions are chosen
-            print("Invalid action index")
-            reward = 0  # Handle the invalid action case as appropriate
-
+   
 
         
         reward = calculate_reward(old_state, new_state, action, playerKilled, winnerRank, old_winner_rank)
