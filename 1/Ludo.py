@@ -1,4 +1,5 @@
 
+import numpy as np
 import pygame
 from   pygame import K_ESCAPE, SCALED, mixer
 import random
@@ -134,16 +135,24 @@ class QNetwork(nn.Module):
         return x
 
 # Initialize Q-Network
-r_q_network = QNetwork()
-g_q_network = QNetwork()
-y_q_network = QNetwork()
-b_q_network = QNetwork()
+# r_q_network = QNetwork()
+# g_q_network = QNetwork()
+# y_q_network = QNetwork()
+# b_q_network = QNetwork()
+q_network = QNetwork()
+# Test with same model
+r_q_network = q_network
+g_q_network = q_network
+y_q_network = q_network
+b_q_network = q_network
 
 # Load the model if it exists
 r_model_path = 'r_ludo_q_network.pth'
 g_model_path = 'g_ludo_q_network.pth'
 y_model_path = 'y_ludo_q_network.pth'
 b_model_path = 'b_ludo_q_network.pth'
+model_path = 'ludo_q_network.pth'
+
 if os.path.exists(r_model_path):
     r_q_network.load_state_dict(torch.load(r_model_path))
 
@@ -156,11 +165,20 @@ if os.path.exists(y_model_path):
 if os.path.exists(b_model_path):
     b_q_network.load_state_dict(torch.load(b_model_path))
 
+if os.path.exists(model_path):
+    q_network.load_state_dict(torch.load(model_path))
 
-r_optimizer = optim.Adam(r_q_network.parameters(), lr=0.001)
-g_optimizer = optim.Adam(g_q_network.parameters(), lr=0.001)
-y_optimizer = optim.Adam(y_q_network.parameters(), lr=0.001)
-b_optimizer = optim.Adam(b_q_network.parameters(), lr=0.001)
+
+# r_optimizer = optim.Adam(r_q_network.parameters(), lr=0.001)
+# g_optimizer = optim.Adam(g_q_network.parameters(), lr=0.001)
+# y_optimizer = optim.Adam(y_q_network.parameters(), lr=0.001)
+# b_optimizer = optim.Adam(b_q_network.parameters(), lr=0.001)
+optimizer = optim.Adam(q_network.parameters(), lr=0.001)
+r_optimizer = optimizer
+g_optimizer = optimizer
+y_optimizer = optimizer
+b_optimizer = optimizer
+
 criterion = nn.MSELoss()
 
 def preprocess_state(state):
@@ -170,7 +188,6 @@ def preprocess_state(state):
     # Normalize or scale positions if needed
     # ...
     return flat_positions
-
 
 # Functions for Q-learning
 def choose_action(state, q_network, epsilon=0.1):
@@ -265,6 +282,11 @@ def calculate_reward(old_state, new_state, action_taken, playerKilled, winnerRan
     if token_moved_forward(old_state, new_state, currentPlayer, action_taken):
         reward += 1
 
+    # Now negative rewards
+    # 1. no change in state
+    if old_state == new_state:
+        reward -= 100
+
     return reward
 
 
@@ -324,6 +346,10 @@ def show_all():
 
 
 def is_possible(x, y):
+    # Check if token is already on winner position
+    if position[x][y] in WINNER:
+        return False
+
     #  R2
     if (position[x][y][1] == 284 and position[x][y][0] <= 202 and x == 0) \
             and (position[x][y][0] + 38*number > WINNER[x][0]):
@@ -374,20 +400,20 @@ def move_token(x, y):
                 and (position[x][y][0] - 38*number >= WINNER[x][0]):
             for i in range(number):
                 position[x][y][0] -= 38
-                show_token()
+                show_token(x, y)
 
         #  G2
         elif (position[x][y][0] == 284 and position[x][y][1] <= 202 and x == 1) \
                 and (position[x][y][1] + 38*number <= WINNER[x][1]):
             for i in range(number):
                 position[x][y][1] += 38
-                show_token()
+                show_token(x, y)
         #  B2
         elif (position[x][y][0] == 284 and position[x][y][1] >= 368 and x == 3) \
                 and (position[x][y][1] - 38*number >= WINNER[x][1]):
             for i in range(number):
                 position[x][y][1] -= 38
-                show_token()
+                show_token(x, y)
 
         # Other Paths
         else:
@@ -508,7 +534,7 @@ while(running):
         diceSound.play()
         flag = True
         for i in range(len(position[currentPlayer])):
-            if tuple(position[currentPlayer][i]) not in HOME[currentPlayer] and is_possible(currentPlayer, i):
+            if tuple(position[currentPlayer][i]) not in HOME[currentPlayer] and is_possible(currentPlayer, i) and tuple(position[currentPlayer][i]) not in WINNER:
                 flag = False
         if (flag and number == 6) or not flag:
             diceRolled = True
