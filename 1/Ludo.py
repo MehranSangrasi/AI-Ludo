@@ -611,7 +611,7 @@ while(running):
 
 
 
-print("Saving model...")
+print("Saving models...")
 torch.save(r_q_network.state_dict(), r_model_path)
 torch.save(g_q_network.state_dict(), g_model_path)
 torch.save(y_q_network.state_dict(), y_model_path)
