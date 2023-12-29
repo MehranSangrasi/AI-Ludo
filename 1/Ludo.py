@@ -541,6 +541,8 @@ while(running):
         action = choose_action(old_state_processed, q_network)
         # Execute the action
         
+        attempts = 4
+        
         while ((tuple(position[currentPlayer][action]) in HOME[currentPlayer] and number != 6 ) or not is_possible(currentPlayer, action))or position[currentPlayer][action] in WINNER:
             
             # train q_network to avoid this action in the future
@@ -569,49 +571,62 @@ while(running):
             optimizer.step()
             
             action = choose_action(old_state_processed, q_network)
+            
+            attempts-=1
+            if attempts == 0:
+                break
+            
+            
 
-
-
-        move_token(currentPlayer, action)
-
-        new_state = {
-                'positions': [list(player) for player in position]  # Updated positions
-                # Update other state elements if necessary
-            }
-        
-        new_state_processed = preprocess_state(new_state)
-        
-        # Inside the game loop, before calling calculate_reward
-        print("Turn = ", currentPlayer)
-        print(f"Old State: {old_state}, New State: {new_state}, Action Taken: {action}")
-
-   
 
         
-        reward = calculate_reward(old_state, new_state, action, playerKilled, winnerRank, old_winner_rank)
+        if ((tuple(position[currentPlayer][action]) in HOME[currentPlayer] and number != 6 ) or not is_possible(currentPlayer, action))or position[currentPlayer][action] in WINNER:
+            print("Player can not complete this action, next turn!")
+            currentPlayer = (currentPlayer+1) % 4
+            
 
-        # Update Q-Network
-        q_values = q_network(torch.tensor(old_state_processed, dtype=torch.float32))
-        next_q_values = q_network(torch.tensor(new_state_processed, dtype=torch.float32))
-        # Inside the game loop, after calculating q_values and next_q_values
-        print(f"Q-Values shape: {q_values.shape}, Next Q-Values shape: {next_q_values.shape}, Action: {action}")
+        else:
+            
+            move_token(currentPlayer, action)
 
-        # Add a batch dimension to q_values and next_q_values
-        q_values = q_values.unsqueeze(0)
-        next_q_values = next_q_values.unsqueeze(0)
+            new_state = {
+                    'positions': [list(player) for player in position]  # Updated positions
+                    # Update other state elements if necessary
+                }
+            
+            new_state_processed = preprocess_state(new_state)
+            
+            # Inside the game loop, before calling calculate_reward
+            print("Turn = ", currentPlayer)
+            print(f"Old State: {old_state}, New State: {new_state}, Action Taken: {action}")
 
-        # Calculate max_next_q value
-        max_next_q = torch.max(next_q_values).item()
 
-        # Prepare target_q values for loss calculation
-        target_q = q_values.clone()
-        target_q[0][action] = reward + 0.9 * max_next_q  # Discount factor
+        
+            reward = calculate_reward(old_state, new_state, action, playerKilled, winnerRank, old_winner_rank)
 
-        # Compute the loss
-        loss = criterion(q_values, target_q)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            # Update Q-Network
+            q_values = q_network(torch.tensor(old_state_processed, dtype=torch.float32))
+            next_q_values = q_network(torch.tensor(new_state_processed, dtype=torch.float32))
+            # Inside the game loop, after calculating q_values and next_q_values
+            print("Inside loop")
+            print(f"Q-Values shape: {q_values.shape}, Next Q-Values shape: {next_q_values.shape}, Action: {action}")
+
+            # Add a batch dimension to q_values and next_q_values
+            q_values = q_values.unsqueeze(0)
+            next_q_values = next_q_values.unsqueeze(0)
+
+            # Calculate max_next_q value
+            max_next_q = torch.max(next_q_values).item()
+
+            # Prepare target_q values for loss calculation
+            target_q = q_values.clone()
+            target_q[0][action] = reward + 0.9 * max_next_q  # Discount factor
+
+            # Compute the loss
+            loss = criterion(q_values, target_q)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
     
     # max_next_q = torch.max(next_q_values).item()
@@ -631,7 +646,7 @@ while(running):
 
     pygame.display.update()
 
-    pygame.time.delay(300)
+    pygame.time.delay(100)
 
 
 
