@@ -86,8 +86,7 @@ enable the AI agent to learn how to play the game effectively by
 interacting with the environment, receiving feedback in the form of
 rewards, and optimizing its strategy over time.
 
-![](readme_media/media/image2.png){width="3.376388888888889in"
-height="1.5652777777777778in"}
+![](readme_media/media/image2.png)
 
 Figure
 
