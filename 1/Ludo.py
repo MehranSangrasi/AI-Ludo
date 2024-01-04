@@ -73,12 +73,11 @@ jump = {(202, 240): (240, 202),  # Red to Green
 WINNER = [[240, 284], [284, 240], [330, 284], [284, 330]]
 
 winner_path = [
-    
-        [(12,284),(50, 284), (88, 284), (126, 284), (164, 284), (202, 284), (240, 284)],
-        [(284,12),(284, 50), (284, 88), (284, 126), (284, 164), (284, 202), (284, 240)],
-        [(558,284),(520, 284), (482, 284), (444, 284), (406, 284), (368, 284), (330, 284)],
-        [(284,558),(284, 520), (284, 482), (284, 444), (284, 406), (284, 368), (284, 330)]      
-    ]
+        [(240, 284), (202, 284), (164, 284), (126, 284), (88, 284), (50, 284)],
+        [(284, 240), (284, 202), (284, 164), (284, 126), (284, 88), (284, 50)],
+        [(330, 284), (368, 284), (406, 284), (444, 284), (482, 284), (520, 284)],
+        [(284, 330), (284, 368), (284, 406), (284, 444), (284, 482), (284, 520)        
+    ]]
 
 
 pygame.freetype.get_default_font() 
@@ -277,7 +276,7 @@ def calculate_reward(old_state, new_state, action_taken, playerKilled, winnerRan
 
     # 6. Getting your token out of home
     if token_left_home(currentPlayer, action_taken):
-        reward += 15
+        reward += 5
 
     # 7. Moving your token forward (lowest reward)
     if token_moved_forward(old_state, new_state, currentPlayer, action_taken):
@@ -387,37 +386,39 @@ def move_token(x, y):
         if not number == 6:
             currentPlayer = (currentPlayer+1) % 4
 
-        for i in range(number):
-        #     if position[x][y] in winner_path[x]:
-        #         position[x][y] = list(winner_path[x][winner_path[x].index(position[x][y])+1])
-            #  R2
-            if (position[x][y][1] == 284 and position[x][y][0] <= 202 and x == 0) \
-                    and (position[x][y][0] + 38 <= WINNER[x][0]): 
-                    position[x][y][0] += 38
-                    show_token(x, y)
+        # Way to WINNER position
 
-            #  Y2
-            elif (position[x][y][1] == 284 and 368 < position[x][y][0] and x == 2) \
-                    and (position[x][y][0] - 38*number >= WINNER[x][0]):
-                # for i in range(number):
-                    position[x][y][0] -= 38
-                    show_token(x,y)
+        #  R2
+        if (position[x][y][1] == 284 and position[x][y][0] <= 202 and x == 0) \
+                and (position[x][y][0] + 38*number <= WINNER[x][0]):
+            for i in range(number):
+                position[x][y][0] += 38
+                show_token(x, y)
 
-            #  G2
-            elif (position[x][y][0] == 284 and position[x][y][1] <= 202 and x == 1) \
-                    and (position[x][y][1] + 38*number <= WINNER[x][1]):
-                # for i in range(number):
-                    position[x][y][1] += 38
-                    show_token(x,y)
-            #  B2
-            elif (position[x][y][0] == 284 and position[x][y][1] >= 368 and x == 3) \
-                    and (position[x][y][1] - 38*number >= WINNER[x][1]):
-                # for i in range(number):
-                    position[x][y][1] -= 38
-                    show_token(x,y)
+        #  Y2
+        elif (position[x][y][1] == 284 and 368 < position[x][y][0] and x == 2) \
+                and (position[x][y][0] - 38*number >= WINNER[x][0]):
+            for i in range(number):
+                position[x][y][0] -= 38
+                show_token(x, y)
+
+        #  G2
+        elif (position[x][y][0] == 284 and position[x][y][1] <= 202 and x == 1) \
+                and (position[x][y][1] + 38*number <= WINNER[x][1]):
+            for i in range(number):
+                position[x][y][1] += 38
+                show_token(x, y)
+        #  B2
+        elif (position[x][y][0] == 284 and position[x][y][1] >= 368 and x == 3) \
+                and (position[x][y][1] - 38*number >= WINNER[x][1]):
+            for i in range(number):
+                position[x][y][1] -= 38
+                show_token(x, y)
 
         # Other Paths
-            else:
+        else:
+            for _ in range(number):
+
                 #  R1, Y3
                 if (position[x][y][1] == 240 and position[x][y][0] < 202) \
                         or (position[x][y][1] == 240 and 368 <= position[x][y][0] < 558):
@@ -647,7 +648,7 @@ while(running):
 
 
 
-print("Saving models...")
+print("Saving model...")
 torch.save(r_q_network.state_dict(), r_model_path)
 torch.save(g_q_network.state_dict(), g_model_path)
 torch.save(y_q_network.state_dict(), y_model_path)
