@@ -135,16 +135,16 @@ class QNetwork(nn.Module):
         return x
 
 # Initialize Q-Network
-# r_q_network = QNetwork()
-# g_q_network = QNetwork()
-# y_q_network = QNetwork()
-# b_q_network = QNetwork()
+r_q_network = QNetwork()
+g_q_network = QNetwork()
+y_q_network = QNetwork()
+b_q_network = QNetwork()
 q_network = QNetwork()
 # Test with same model
-r_q_network = q_network
-g_q_network = q_network
-y_q_network = q_network
-b_q_network = q_network
+# r_q_network = q_network
+# g_q_network = q_network
+# y_q_network = q_network
+# b_q_network = q_network
 
 # Load the model if it exists
 r_model_path = 'r_ludo_q_network.pth'
@@ -169,15 +169,15 @@ if os.path.exists(model_path):
     q_network.load_state_dict(torch.load(model_path))
 
 
-# r_optimizer = optim.Adam(r_q_network.parameters(), lr=0.001)
-# g_optimizer = optim.Adam(g_q_network.parameters(), lr=0.001)
-# y_optimizer = optim.Adam(y_q_network.parameters(), lr=0.001)
-# b_optimizer = optim.Adam(b_q_network.parameters(), lr=0.001)
+r_optimizer = optim.Adam(r_q_network.parameters(), lr=0.001)
+g_optimizer = optim.Adam(g_q_network.parameters(), lr=0.001)
+y_optimizer = optim.Adam(y_q_network.parameters(), lr=0.001)
+b_optimizer = optim.Adam(b_q_network.parameters(), lr=0.001)
 optimizer = optim.Adam(q_network.parameters(), lr=0.001)
-r_optimizer = optimizer
-g_optimizer = optimizer
-y_optimizer = optimizer
-b_optimizer = optimizer
+# r_optimizer = optimizer
+# g_optimizer = optimizer
+# y_optimizer = optimizer
+# b_optimizer = optimizer
 
 criterion = nn.MSELoss()
 
@@ -483,6 +483,13 @@ def check_winner():
 
 old_winner_rank = []
 
+# Get the type of gameplay
+while True:
+    game_type = input("Enter the type of gameplay (1 for all AI players, 2 for 1 human player and 3 AI players, 3 for 2 human players and 2 AI players, 4 for 3 human players and 1 AI player): ")
+    game_type = int(game_type)
+    if game_type in [1, 2, 3, 4]:
+        break
+
     # Main LOOP
 running = True
 while(running):
@@ -501,119 +508,123 @@ while(running):
             running = False
 
         # When MOUSEBUTTON is clicked
-        if event.type == pygame.MOUSEBUTTONUP:
+        if event.type == pygame.MOUSEBUTTONUP and game_type != 1:
             coordinate = pygame.mouse.get_pos()
 
+            if game_type == 2 and currentPlayer != 0 or game_type == 3 and currentPlayer != 0 and currentPlayer != 1 or game_type == 4 and currentPlayer != 0 and currentPlayer != 1 and currentPlayer != 2:
+                pass
             # Rolling Dice
-            if not diceRolled and (DicePosition[currentPlayer][1] <= coordinate[1] <= DicePosition[currentPlayer][1]+49) and (DicePosition[currentPlayer][0] <= coordinate[0] <= DicePosition[currentPlayer][0]+49):
-                number = random.randint(1, 6)
-                diceSound.play()
-                flag = True
-                for i in range(len(position[currentPlayer])):
-                    if tuple(position[currentPlayer][i]) not in HOME[currentPlayer] and is_possible(currentPlayer, i):
-                        flag = False
-                if (flag and number == 6) or not flag:
-                    diceRolled = True
+            else:
+                if not diceRolled and (DicePosition[currentPlayer][1] <= coordinate[1] <= DicePosition[currentPlayer][1]+49) and (DicePosition[currentPlayer][0] <= coordinate[0] <= DicePosition[currentPlayer][0]+49):
+                    number = random.randint(1, 6)
+                    diceSound.play()
+                    flag = True
+                    for i in range(len(position[currentPlayer])):
+                        if tuple(position[currentPlayer][i]) not in HOME[currentPlayer] and is_possible(currentPlayer, i):
+                            flag = False
+                    if (flag and number == 6) or not flag:
+                        diceRolled = True
 
-                else:
-                    currentPlayer = (currentPlayer+1) % 4
+                    else:
+                        currentPlayer = (currentPlayer+1) % 4
 
-            # Moving Player
-            elif diceRolled:
-                for j in range(len(position[currentPlayer])):
-                    if position[currentPlayer][j][0] <= coordinate[0] <= position[currentPlayer][j][0]+31 \
-                            and position[currentPlayer][j][1] <= coordinate[1] <= position[currentPlayer][j][1]+31:
-                        move_token(currentPlayer, j)
-                        break
+                # Moving Player
+                elif diceRolled:
+                    for j in range(len(position[currentPlayer])):
+                        if position[currentPlayer][j][0] <= coordinate[0] <= position[currentPlayer][j][0]+31 \
+                                and position[currentPlayer][j][1] <= coordinate[1] <= position[currentPlayer][j][1]+31:
+                            move_token(currentPlayer, j)
+                            break
         
+    if game_type == 1 or game_type == 2 and currentPlayer != 0 or game_type == 3 and currentPlayer != 0 and currentPlayer != 1 or game_type == 4 and currentPlayer != 0 and currentPlayer != 1 and currentPlayer != 2:
+            # Rolling Dice
 
-        # Rolling Dice
-    if not diceRolled:
-        number = random.randint(1, 6)
-    
-        diceSound.play()
-        flag = True
-        for i in range(len(position[currentPlayer])):
-            if tuple(position[currentPlayer][i]) not in HOME[currentPlayer] and is_possible(currentPlayer, i) and tuple(position[currentPlayer][i]) not in WINNER:
-                flag = False
-        if (flag and number == 6) or not flag:
-            diceRolled = True
-
-        else:
-            currentPlayer = (currentPlayer+1) % 4
-
-    # Moving Player
-    elif diceRolled:
-    
-        # Before making a move
-        old_state = {
-            'positions': [list(player) for player in position]  # Deep copy of the positions
-            # Include other state elements if necessary
-        }
-        old_state_processed = preprocess_state(old_state)
+        if not diceRolled:
+            number = random.randint(1, 6)
         
-        if currentPlayer == 0:
-            q_network = r_q_network
-            optimizer = r_optimizer
-        elif currentPlayer == 1:
-            q_network = g_q_network
-            optimizer = g_optimizer
-        elif currentPlayer == 2:
-            q_network = y_q_network
-            optimizer = y_optimizer
-        elif currentPlayer == 3:
-            q_network = b_q_network
-            optimizer = b_optimizer
+            diceSound.play()
+            flag = True
+            for i in range(len(position[currentPlayer])):
+                if tuple(position[currentPlayer][i]) not in HOME[currentPlayer] and is_possible(currentPlayer, i) and tuple(position[currentPlayer][i]) not in WINNER:
+                    flag = False
+            if (flag and number == 6) or not flag:
+                diceRolled = True
 
-        action = choose_action(old_state_processed, q_network)
-        # Execute the action
+            else:
+                currentPlayer = (currentPlayer+1) % 4
 
-        move_token(currentPlayer, action)
-
-        new_state = {
-                'positions': [list(player) for player in position]  # Updated positions
-                # Update other state elements if necessary
+        # Moving Player
+        elif diceRolled:
+        
+            # Before making a move
+            old_state = {
+                'positions': [list(player) for player in position]  # Deep copy of the positions
+                # Include other state elements if necessary
             }
-        
-        new_state_processed = preprocess_state(new_state)
-        
-        # Inside the game loop, before calling calculate_reward
-        print(f"Old State: {old_state}, New State: {new_state}, Action Taken: {action}")
+            old_state_processed = preprocess_state(old_state)
+            
+            if currentPlayer == 0:
+                q_network = r_q_network
+                optimizer = r_optimizer
+            elif currentPlayer == 1:
+                q_network = g_q_network
+                optimizer = g_optimizer
+            elif currentPlayer == 2:
+                q_network = y_q_network
+                optimizer = y_optimizer
+            elif currentPlayer == 3:
+                q_network = b_q_network
+                optimizer = b_optimizer
 
-        if 0 <= action < len(old_state) and 0 <= action < len(new_state):
-            # The action index is within the valid range, so we can calculate the reward
+            action = choose_action(old_state_processed, q_network)
+            # Execute the action
+
+            move_token(currentPlayer, action)
+
+            new_state = {
+                    'positions': [list(player) for player in position]  # Updated positions
+                    # Update other state elements if necessary
+                }
+            
+            new_state_processed = preprocess_state(new_state)
+            
+            # Inside the game loop, before calling calculate_reward
+            print(f"Old State: {old_state}, New State: {new_state}, Action Taken: {action}")
+
+            if 0 <= action < len(old_state) and 0 <= action < len(new_state):
+                # The action index is within the valid range, so we can calculate the reward
+                reward = calculate_reward(old_state, new_state, action, playerKilled, winnerRank, old_winner_rank)
+            else:
+                # The action index is out of range, which might indicate an issue with how actions are chosen
+                print("Invalid action index")
+                reward = 0  # Handle the invalid action case as appropriate
+
+
+            
             reward = calculate_reward(old_state, new_state, action, playerKilled, winnerRank, old_winner_rank)
-        else:
-            # The action index is out of range, which might indicate an issue with how actions are chosen
-            print("Invalid action index")
-            reward = 0  # Handle the invalid action case as appropriate
 
+            # Update Q-Network
+            q_values = q_network(torch.tensor(old_state_processed, dtype=torch.float32))
+            next_q_values = q_network(torch.tensor(new_state_processed, dtype=torch.float32))
+            # Inside the game loop, after calculating q_values and next_q_values
+            print(f"Q-Values shape: {q_values.shape}, Next Q-Values shape: {next_q_values.shape}, Action: {action}")
 
-        
-        reward = calculate_reward(old_state, new_state, action, playerKilled, winnerRank, old_winner_rank)
+            # Add a batch dimension to q_values and next_q_values
+            q_values = q_values.unsqueeze(0)
+            next_q_values = next_q_values.unsqueeze(0)
 
-        # Update Q-Network
-        q_values = q_network(torch.tensor(old_state_processed, dtype=torch.float32))
-        next_q_values = q_network(torch.tensor(new_state_processed, dtype=torch.float32))
-        # Inside the game loop, after calculating q_values and next_q_values
-        print(f"Q-Values shape: {q_values.shape}, Next Q-Values shape: {next_q_values.shape}, Action: {action}")
+            # Calculate max_next_q value
+            max_next_q = torch.max(next_q_values).item()
 
-        # Add a batch dimension to q_values and next_q_values
-        q_values = q_values.unsqueeze(0)
-        next_q_values = next_q_values.unsqueeze(0)
+            # Prepare target_q values for loss calculation
+            target_q = q_values.clone()
+            target_q[0][action] = reward + 0.9 * max_next_q  # Discount factor
 
-        # Calculate max_next_q value
-        max_next_q = torch.max(next_q_values).item()
-
-        # Prepare target_q values for loss calculation
-        target_q = q_values.clone()
-        target_q[0][action] = reward + 0.9 * max_next_q  # Discount factor
-
-        # Compute the loss
-        loss = criterion(q_values, target_q)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            # Compute the loss
+            loss = criterion(q_values, target_q)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
     
     # max_next_q = torch.max(next_q_values).item()
