@@ -73,11 +73,13 @@ jump = {(202, 240): (240, 202),  # Red to Green
 WINNER = [[240, 284], [284, 240], [330, 284], [284, 330]]
 
 winner_path = [
-        [(240, 284), (202, 284), (164, 284), (126, 284), (88, 284), (50, 284)],
-        [(284, 240), (284, 202), (284, 164), (284, 126), (284, 88), (284, 50)],
-        [(330, 284), (368, 284), (406, 284), (444, 284), (482, 284), (520, 284)],
-        [(284, 330), (284, 368), (284, 406), (284, 444), (284, 482), (284, 520)        
-    ]]
+    
+        [(12,284),(50, 284), (88, 284), (126, 284), (164, 284), (202, 284), (240, 284)],
+        [(284,12),(284, 50), (284, 88), (284, 126), (284, 164), (284, 202), (284, 240)],
+        [(558,284),(520, 284), (482, 284), (444, 284), (406, 284), (368, 284), (330, 284)],
+        [(284,558),(284, 520), (284, 482), (284, 444), (284, 406), (284, 368), (284, 330)]      
+    ]
+
 
 
 pygame.freetype.get_default_font() 
@@ -370,7 +372,6 @@ def is_possible(x, y):
     return True
 
 # Moving the token
-
 def move_token(x, y):
     global currentPlayer, diceRolled
 
@@ -386,39 +387,37 @@ def move_token(x, y):
         if not number == 6:
             currentPlayer = (currentPlayer+1) % 4
 
-        # Way to WINNER position
+        for i in range(number):
+        #     if position[x][y] in winner_path[x]:
+        #         position[x][y] = list(winner_path[x][winner_path[x].index(position[x][y])+1])
+            #  R2
+            if (position[x][y][1] == 284 and position[x][y][0] <= 202 and x == 0) \
+                    and (position[x][y][0] + 38 <= WINNER[x][0]): 
+                    position[x][y][0] += 38
+                    show_token(x, y)
 
-        #  R2
-        if (position[x][y][1] == 284 and position[x][y][0] <= 202 and x == 0) \
-                and (position[x][y][0] + 38*number <= WINNER[x][0]):
-            for i in range(number):
-                position[x][y][0] += 38
-                show_token(x, y)
+            #  Y2
+            elif (position[x][y][1] == 284 and 368 < position[x][y][0] and x == 2) \
+                    and (position[x][y][0] - 38*number >= WINNER[x][0]):
+                # for i in range(number):
+                    position[x][y][0] -= 38
+                    show_token(x,y)
 
-        #  Y2
-        elif (position[x][y][1] == 284 and 368 < position[x][y][0] and x == 2) \
-                and (position[x][y][0] - 38*number >= WINNER[x][0]):
-            for i in range(number):
-                position[x][y][0] -= 38
-                show_token(x, y)
-
-        #  G2
-        elif (position[x][y][0] == 284 and position[x][y][1] <= 202 and x == 1) \
-                and (position[x][y][1] + 38*number <= WINNER[x][1]):
-            for i in range(number):
-                position[x][y][1] += 38
-                show_token(x, y)
-        #  B2
-        elif (position[x][y][0] == 284 and position[x][y][1] >= 368 and x == 3) \
-                and (position[x][y][1] - 38*number >= WINNER[x][1]):
-            for i in range(number):
-                position[x][y][1] -= 38
-                show_token(x, y)
+            #  G2
+            elif (position[x][y][0] == 284 and position[x][y][1] <= 202 and x == 1) \
+                    and (position[x][y][1] + 38*number <= WINNER[x][1]):
+                # for i in range(number):
+                    position[x][y][1] += 38
+                    show_token(x,y)
+            #  B2
+            elif (position[x][y][0] == 284 and position[x][y][1] >= 368 and x == 3) \
+                    and (position[x][y][1] - 38*number >= WINNER[x][1]):
+                # for i in range(number):
+                    position[x][y][1] -= 38
+                    show_token(x,y)
 
         # Other Paths
-        else:
-            for _ in range(number):
-
+            else:
                 #  R1, Y3
                 if (position[x][y][1] == 240 and position[x][y][0] < 202) \
                         or (position[x][y][1] == 240 and 368 <= position[x][y][0] < 558):
@@ -467,7 +466,6 @@ def move_token(x, y):
                         position[i][j] = list(HOME[i][j])
                         killSound.play()
                         currentPlayer = x # (currentPlayer+3) % 4
-
 
 # Checking Winner
 def check_winner():
@@ -577,6 +575,49 @@ while(running):
                 optimizer = b_optimizer
 
             action = choose_action(old_state_processed, q_network)
+
+            while ((tuple(position[currentPlayer][action]) in HOME[currentPlayer] and number != 6 ) or not is_possible(currentPlayer, action))or position[currentPlayer][action] in WINNER or (position[currentPlayer][action] in winner_path[currentPlayer] and number == 6):
+            
+            # train q_network to avoid this action in the future
+                reward = -10
+                # Update Q-Network
+                q_values = q_network(torch.tensor(old_state_processed, dtype=torch.float32))
+                next_q_values = q_network(torch.tensor(old_state_processed, dtype=torch.float32))
+                # Inside the game loop, after calculating q_values and next_q_values
+                print(f"Q-Values shape: {q_values.shape}, Next Q-Values shape: {next_q_values.shape}, Action: {action}")
+                
+                # Add a batch dimension to q_values and next_q_values
+                q_values = q_values.unsqueeze(0)
+                next_q_values = next_q_values.unsqueeze(0)
+                
+                # Calculate max_next_q value
+                max_next_q = torch.max(next_q_values).item()
+                
+                # Prepare target_q values for loss calculation
+                target_q = q_values.clone()
+                target_q[0][action] = reward + 0.9 * max_next_q  # Discount factor
+                
+                # Compute the loss
+                loss = criterion(q_values, target_q)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                flag_two = False
+                action = choose_action(old_state_processed, q_network)
+
+                # all tokens are in winner paths and can't move forward if the dice is 6
+                for i in range(len(position[currentPlayer])+1):
+                    if i == len(position[currentPlayer]) and number == 6:
+                        flag_two = True
+                    if (position[currentPlayer][i]) in winner_path[currentPlayer]:
+                        continue
+                    else:
+                        break
+                if flag_two:
+                    break
+
+
+
             # Execute the action
 
             move_token(currentPlayer, action)
