@@ -11,7 +11,7 @@ reaching the center before opponents.
 
 ## Installation
 Before running the game, ensure you have the required libraries installed:
-``` bash
+``` bash 
 pip install pygame torch
 ```
 
