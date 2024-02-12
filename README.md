@@ -6,7 +6,7 @@ intelligence (AI) agent capable of playing the classic board game Ludo
 through the application of reinforcement learning techniques,
 particularly Q-learning. Ludo, a game of strategy and chance, involves
 moving tokens around the board based on dice rolls, with the goal of
-reaching the center before opponents.
+reaching the center before opponents. 
 
 
 ## Installation
