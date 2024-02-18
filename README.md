@@ -16,7 +16,7 @@ Before running the game, ensure you have the required libraries installed:
 pip install pygame torch
 ```
 
-***P.S : Stable Version in src folder, numbered are ongoing experiments***
+***P.S : Stable Version in src folder, numbered are ongoing experiments*** 
 
 ## Game Setup
 - Pygame Library: Used for game development including rendering the game window and managing events.
