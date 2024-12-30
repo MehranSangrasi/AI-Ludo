@@ -28,7 +28,7 @@ pip install pygame torch
 ## Running the Game
 To start the game, run the main Python script:
 ``` bash
-python ludo_game.py
+python ludo.py
 ```
 
 Players can choose between AI-only and mixed human-AI gameplay (from terminal for now, Until We make some GUI for that 🙏
