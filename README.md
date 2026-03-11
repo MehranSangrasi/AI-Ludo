@@ -213,7 +213,7 @@ learning capabilities of AI agents in gaming scenarios.
 
 ## Acknowledgment 
 
-We express our deepest gratitude to my professor, Dr. Imran Malik whose
+We sincerely express our deepest gratitude to my professor, Dr. Imran Malik whose
 guidance and support were invaluable throughout this endeavor.
 
 ## References
